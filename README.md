@@ -27,7 +27,14 @@ I started it as a way to learn the Rust coding language, while also building a t
 - Skins are chosen and saved but not drawn in the viewport.
 - Only the main grid of an imported blueprint is loaded. Subgrids are left out.
 - I haven't tested an exported station in the game yet.
-- Planned: a toggleable overlay showing conveyor and inventory connections, and hiding blocks by layer.
+
+## Planned: 
+- A toggleable overlay showing conveyor and inventory connections
+- Hiding blocks by layer.
+- Adding stats for estimated Power, weight, thrust, lift/G, etc.
+- Adding a mirror mode for building
+- Including popular modded items or adding modded items in general
+- Optimizations
 
 ## Requirements
 
