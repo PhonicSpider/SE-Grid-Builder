@@ -1,5 +1,7 @@
 # SE Grid Builder
 
+> **Not affiliated with Keen Software House or the Space Engineers games.** This is an independent fan project. It does not redistribute any game assets. The models, textures, icons and block data are read directly from your own installed copy of the game while the app runs, and nothing from the game is stored in this repository. Space Engineers and its content belong to Keen Software House.
+
 A desktop app for building Space Engineers ships and stations one block at a time in 3D, painting them, and saving them as blueprints the game can load. It can also open blueprints other people made.
 
 It reads blocks, icons, models and textures from your own copy of Space Engineers 1. Nothing from the game is included in this repository, so you need the game installed.
@@ -64,4 +66,4 @@ I'm learning Rust while building this, so the code is heavily commented. The `va
 
 ## A note on game content
 
-This is a fan project. It isn't made by or connected to Keen Software House. Space Engineers is their trademark, and the game's models, textures and icons belong to them. The app displays them from your own install and doesn't copy or redistribute them.
+See the notice at the top. The app displays the game's models, textures and icons straight from your own install and doesn't copy or redistribute them.
