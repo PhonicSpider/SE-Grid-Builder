@@ -6,7 +6,7 @@ A desktop app for building Space Engineers ships and stations one block at a tim
 
 It reads blocks, icons, models and textures from your own copy of Space Engineers 1. Nothing from the game is included in this repository, so you need the game installed.
 
-I started it because planning a ship inside the game means building it, and I wanted to sketch and rework a design without spending resources or fighting the survival grid. It's still a work in progress and I use it for my own builds.
+I started it as a way to learn the Rust coding language, while also building a tool to make building ships easier. This way you don't have to spend hours in creative or survival to design your ship.
 
 ## What it does
 
@@ -21,8 +21,9 @@ I started it because planning a ship inside the game means building it, and I wa
 
 ## Not done yet
 
-- Space Engineers 2. I don't have a sample blueprint to learn the format from, so nothing is built for it.
-- Paint colors the whole surface of a block. The game masks parts of some models, and I haven't worked that mask out.
+- Space Engineers 2. I am still working out the file format and exporting/importing, so nothing is built for it.
+    - You are able to Export as Space Engineers .SBC file and SE2 will import it anyway, so wasn't priority at the time.
+- Paint colors the whole surface of a block. The game masks parts of some models, and I haven't worked out where the mask is yet.
 - Skins are chosen and saved but not drawn in the viewport.
 - Only the main grid of an imported blueprint is loaded. Subgrids are left out.
 - I haven't tested an exported station in the game yet.
