@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>SE Grid Builder</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <!-- Start-up screen: shows what the app is loading. main.ts fills it in. -->
+    <div id="loading-screen">
+      <div id="loading-card">
+        <h1>SE Grid Builder</h1>
+        <div id="loading-log" role="log" aria-live="polite"></div>
+        <div id="loading-count">Starting...</div>
+        <div id="loading-bar"><div id="loading-bar-fill"></div></div>
+        <button type="button" id="loading-action" hidden></button>
+      </div>
+    </div>
+
+    <aside id="panel">
+      <!-- 1. Game and grid size -->
+      <section id="game-section">
+        <div class="row">
+          <select id="game-select" aria-label="Game">
+            <option value="se1">Space Engineers 1</option>
+            <option value="se2" disabled>Space Engineers 2 (not built yet)</option>
+          </select>
+          <div class="segment" id="grid-size-row" role="group" aria-label="Grid size">
+            <button type="button" class="icon-button active" data-grid-size="Large" data-icon="gridLarge"
+              data-tooltip="Large grid ship" aria-label="Large grid ship"></button>
+            <button type="button" class="icon-button" data-grid-size="Small" data-icon="gridSmall"
+              data-tooltip="Small grid ship" aria-label="Small grid ship"></button>
+          </div>
+        </div>
+        <p class="hint" id="grid-size-hint"></p>
+      </section>
+
+      <!-- 2. Tools -->
+      <section id="tools-section">
+        <div class="row" role="toolbar" aria-label="Tools">
+          <div class="segment" id="mode-row">
+            <button type="button" class="icon-button active" data-mode="build" data-icon="build"
+              data-tooltip="Build (1): place blocks" aria-label="Build"></button>
+            <button type="button" class="icon-button" data-mode="remove" data-icon="remove"
+              data-tooltip="Remove (2): delete blocks. Right click also removes." aria-label="Remove"></button>
+            <button type="button" class="icon-button" data-mode="paint" data-icon="paint"
+              data-tooltip="Paint (3): recolor blocks" aria-label="Paint"></button>
+          </div>
+          <!-- Between the mode buttons and the rotate buttons. -->
+          <button type="button" class="icon-button" id="import-button" data-icon="import"
+            data-tooltip="Import blueprint…: load a .sbc someone made. Replaces the current ship; Ctrl+Z undoes it."
+            aria-label="Import blueprint"></button>
+          <input id="import-file" type="file" accept=".sbc,.xml" hidden />
+          <div class="segment">
+            <button type="button" class="icon-button" id="rotate-yaw" data-icon="turn"
+              data-tooltip="Turn (Q): spin the block left or right" aria-label="Turn"></button>
+            <button type="button" class="icon-button" id="rotate-pitch" data-icon="tip"
+              data-tooltip="Tip (W): tilt the block forward or back" aria-label="Tip"></button>
+            <button type="button" class="icon-button" id="rotate-roll" data-icon="roll"
+              data-tooltip="Roll (E): roll the block sideways" aria-label="Roll"></button>
+          </div>
+        </div>
+        <p id="selection-info" class="hint">No block selected.</p>
+        <p id="orientation-info" class="hint"></p>
+      </section>
+
+      <!-- 3. Paint -->
+      <section id="paint-section">
+        <label class="checkbox-row">
+          <input id="repaint-color" type="checkbox" checked />
+          Use color to repaint
+        </label>
+        <div class="paint-row">
+          <input id="color-picker" type="color" value="#737373" aria-label="Custom paint color"
+            data-tooltip="Pick any color" />
+          <div id="swatches" aria-label="The game's default paint colors"></div>
+        </div>
+        <label class="checkbox-row skin-heading">
+          <input id="repaint-skin" type="checkbox" checked />
+          Use skin to repaint
+        </label>
+        <div id="skin-grid" role="group" aria-label="Armor skins"></div>
+      </section>
+
+      <!-- 4. Blocks (takes the remaining height) -->
+      <section id="blocks-section">
+        <input id="search" type="search" placeholder="Search blocks…" autocomplete="off" />
+        <select id="category-select" aria-label="Block category"></select>
+        <label class="checkbox-row">
+          <input id="include-variants" type="checkbox" checked />
+          Include armor shapes and variants
+        </label>
+        <div id="block-grid" role="list" aria-label="Blocks"></div>
+        <p class="hint" id="catalog-status">Loading block list…</p>
+      </section>
+
+      <!-- 5. Export -->
+      <section id="export-section">
+        <div class="segment" id="export-kind-row" role="group" aria-label="Save as">
+          <button type="button" class="kind-button active" data-kind="ship" aria-pressed="true"
+            data-tooltip="Save as a ship: it can move and fly.">Ship</button>
+          <button type="button" class="kind-button" data-kind="station" aria-pressed="false"
+            data-tooltip="Save as a station or base: a static grid that stays where it is placed.">Station / base</button>
+        </div>
+        <input id="ship-name" type="text" placeholder="Ship name" maxlength="60" />
+        <div class="row">
+          <button type="button" id="export-button" class="primary">Export blueprint</button>
+          <button type="button" id="undo-button">Undo</button>
+          <button type="button" id="clear-button">Clear</button>
+        </div>
+        <p id="export-status" class="hint" role="status"></p>
+        <button type="button" id="overwrite-button" hidden>Replace the existing blueprint</button>
+      </section>
+    </aside>
+
+    <div id="panel-resizer" role="separator" aria-orientation="vertical" aria-label="Resize side panel"
+      tabindex="0" title="Drag to resize. Double-click to reset."></div>
+
+    <main id="viewport">
+      <!-- Everything pinned to the top of the 3D view: a bar of view controls
+           (fading now; connection lines and layer hiding later), then the status line and key list. -->
+      <div id="viewport-top">
+      <div id="view-bar" role="toolbar" aria-label="View controls">
+        <div id="fade-rows" aria-label="Fade block groups"></div>
+        <label class="checkbox-row">
+          <input id="click-through" type="checkbox" />
+          Click through faded blocks
+        </label>
+      </div>
+      <div id="overlay">
+        <div id="status-left">
+          <span id="block-count">0 blocks</span>
+          <span id="action-message" role="status"></span>
+        </div>
+        <ul id="keybinds" aria-label="Mouse and keyboard controls">
+          <li><span class="keys">Left click</span><span>Use tool</span></li>
+          <li><span class="keys">Right click</span><span>Remove block</span></li>
+          <li><span class="keys">Shift + left drag</span><span>Fill a floor</span></li>
+          <li><span class="keys">Shift + right drag</span><span>Clear a floor</span></li>
+          <li><span class="keys">Ctrl + left drag</span><span>Fill a wall</span></li>
+          <li><span class="keys">Ctrl + right drag</span><span>Clear a wall</span></li>
+          <li><span class="keys">Left drag</span><span>Orbit</span></li>
+          <li><span class="keys">Right drag</span><span>Pan</span></li>
+          <li><span class="keys">Wheel</span><span>Zoom</span></li>
+          <li><span class="keys">1 / 2 / 3</span><span>Build / Remove / Paint</span></li>
+          <li><span class="keys">Q / W / E</span><span>Turn / Tip / Roll</span></li>
+          <li><span class="keys">Ctrl + Z</span><span>Undo</span></li>
+          <li><span class="keys">Esc</span><span>Deselect / cancel</span></li>
+        </ul>
+      </div>
+      </div>
+    </main>
+  </body>
+</html>

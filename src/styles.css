@@ -1,0 +1,597 @@
+:root {
+  color-scheme: dark;
+  --background: #14161c;
+  --panel: #1c1f27;
+  --panel-border: #2c3140;
+  --control: #272c38;
+  --control-hover: #313748;
+  --text: #e6e8ee;
+  --text-muted: #9097a8;
+  --accent: #4f8cff;
+  --danger: #e5484d;
+  font-family: system-ui, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  background: var(--background);
+  color: var(--text);
+  overflow: hidden;
+}
+
+body.resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+
+/* ---- Layout: side panel, drag bar, 3D view ------------------------------ */
+
+#panel {
+  width: var(--panel-width, 380px);
+  flex-shrink: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: var(--panel);
+  overflow-y: auto; /* a safety net on very short windows */
+}
+
+#panel-resizer {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--panel-border);
+  transition: background 0.15s;
+}
+
+#panel-resizer:hover,
+#panel-resizer:focus-visible,
+body.resizing #panel-resizer {
+  background: var(--accent);
+  outline: none;
+}
+
+#viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+#viewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The block section stretches to use the height left over by the others. */
+#blocks-section {
+  flex: 1 1 auto;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+#export-section,
+#game-section,
+#tools-section,
+#paint-section {
+  flex: 0 0 auto;
+}
+
+/* One row per fadable group: a label, a slider and the percentage. */
+.fade-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.fade-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.fade-row .fade-value {
+  width: 3.5em;
+  text-align: right;
+}
+
+/* ---- Controls ------------------------------------------------------------ */
+
+input[type="search"],
+input[type="text"],
+select {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 7px 9px;
+  background: var(--background);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+button {
+  padding: 7px 10px;
+  background: var(--control);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--control-hover);
+}
+
+button.primary,
+.kind-button.active,
+.icon-button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.row > select {
+  flex: 1;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+#export-section .row button {
+  flex: 1;
+}
+
+
+/* Save as: Ship or Station / base. */
+#export-kind-row {
+  margin-bottom: 8px;
+}
+
+#export-kind-row button {
+  flex: 1;
+}
+
+/* A group of icon buttons that share one outline. */
+.segment {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.icon-button svg {
+  display: block;
+}
+
+/* Mode buttons on the left, the import button in the middle, rotate buttons on the right.
+   In a very narrow panel the buttons wrap onto a second line instead of being clipped. */
+#tools-section .row {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.hint {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+#export-status.error {
+  color: var(--danger);
+}
+
+/* ---- Tooltips ------------------------------------------------------------- */
+
+/* One box, moved next to the hovered element by src/tooltip.ts. */
+#tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 260px;
+  padding: 5px 8px;
+  background: #0b0c10;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+#tooltip[hidden] {
+  display: none;
+}
+
+/* ---- Paint ---------------------------------------------------------------- */
+
+.paint-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+#color-picker {
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: none;
+}
+
+#swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+#swatches button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 5px;
+  border: 2px solid transparent;
+}
+
+#swatches button.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ---- Block grid ----------------------------------------------------------- */
+
+/* auto-fill makes as many columns as fit, so the grid reflows when the panel is resized. */
+#block-grid {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  grid-auto-rows: max-content;
+  gap: 6px;
+  padding: 6px;
+  background: var(--background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.tile {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  background: #20242e;
+  border: 2px solid transparent;
+  border-radius: 6px;
+}
+
+.tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.tile.has-icon img {
+  opacity: 1;
+}
+
+/* The name sits on the picture, on a dark fade so it stays readable. */
+.tile-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 4px 3px;
+  background: linear-gradient(transparent, rgba(8, 9, 12, 0.92) 55%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Before its picture loads (or if it never does), the name sits in the middle. */
+.tile:not(.has-icon) .tile-name {
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  padding: 4px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-shadow: none;
+}
+
+.tile:hover {
+  border-color: var(--control-hover);
+  background: var(--control-hover);
+}
+
+.tile.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ---- 3D view overlay ------------------------------------------------------ */
+
+/* Pinned to the top edge of the 3D view. Only the view bar takes mouse input;
+   the rest lets clicks fall through to the canvas. */
+#viewport-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* The row of view controls (fade sliders now; connection lines and layer hiding later). */
+#view-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 20px;
+  padding: 6px 12px;
+  background: rgba(20, 22, 28, 0.8);
+  border-bottom: 1px solid var(--panel-border);
+  pointer-events: auto;
+  font-size: 12px;
+}
+
+#view-bar .checkbox-row,
+#view-bar .fade-row {
+  margin-bottom: 0;
+}
+
+#view-bar .fade-row input[type="range"] {
+  flex: none;
+  width: 160px;
+}
+
+#overlay {
+  margin: 0 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  pointer-events: none;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+#status-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#block-count {
+  white-space: nowrap;
+}
+
+#action-message {
+  color: var(--text);
+}
+
+/* The controls list runs down the right edge, starting in the top corner. */
+#keybinds {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(20, 22, 28, 0.65);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+}
+
+#keybinds li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  white-space: nowrap;
+}
+
+#keybinds .keys {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---- Skins ----------------------------------------------------------------- */
+
+.skin-heading {
+  margin-top: 10px;
+}
+
+#skin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 5px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 5px;
+  background: var(--background);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.skin {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  background: #20242e;
+  border: 2px solid transparent;
+  border-radius: 5px;
+}
+
+.skin img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.skin svg {
+  display: block;
+  margin: auto;
+}
+
+.skin.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* A small gold dot marks skins that need a DLC. */
+.skin.needs-dlc::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  background: #e7c14a;
+  border: 1px solid #0b0c10;
+  border-radius: 50%;
+}
+
+/* ---- Start-up loading screen ------------------------------------------- */
+
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  transition: opacity 0.35s ease;
+}
+
+#loading-screen.done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#loading-screen[hidden] {
+  display: none;
+}
+
+#loading-card {
+  width: min(640px, 90vw);
+}
+
+#loading-card h1 {
+  margin: 0 0 14px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Looks like the shell window: dark, monospace, newest line at the bottom. */
+#loading-log {
+  height: 230px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: #0d0f14;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  font: 12px/1.5 Consolas, "Cascadia Mono", monospace;
+  color: var(--text-muted);
+}
+
+#loading-log div:last-child {
+  color: var(--text);
+}
+
+#loading-count {
+  margin: 14px 0 6px;
+  font-size: 13px;
+}
+
+#loading-bar {
+  height: 8px;
+  background: var(--control);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#loading-bar-fill {
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.12s linear;
+}
+
+#loading-screen.failed #loading-bar-fill {
+  background: var(--danger);
+}
+
+#loading-screen.failed #loading-count {
+  color: var(--danger);
+}
+
+/* The "Locate game folder" button shown when the game is not found. */
+#loading-action {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+#loading-action[hidden] {
+  display: none;
+}
