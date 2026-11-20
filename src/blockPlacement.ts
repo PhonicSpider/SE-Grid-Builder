@@ -12,6 +12,33 @@ import { footprint, orientationAxes, type Orientation, type Vector } from "./ori
 /** How long one grid cell is, in meters. */
 const CELL_METERS: Record<string, number> = { Large: 2.5, Small: 0.5 };
 
+/**
+ * Where a block's lowest corner goes so that it sits ON the face that was
+ * clicked, not inside the block that owns the face.
+ *
+ * `cell` is the empty cell right next to the clicked face, `faceAxis` is the
+ * axis the face points along (0 = x, 1 = y, 2 = z) and `faceSign` is +1 or -1
+ * for which way it points. `blockSize` is the block's footprint in cells.
+ *
+ * A block is placed by its lowest corner and grows toward higher numbers. On a
+ * face pointing toward LOWER numbers it would grow back into the block it is
+ * meant to sit beside, so it is moved back by its own size along that axis.
+ * Along the other two axes the block is centered on the cell under the cursor,
+ * so a big block does not hang off to one side of where you are aiming.
+ */
+export function originOnFace(cell: Vector, faceAxis: number, faceSign: number, blockSize: Vector): Vector {
+  const origin: Vector = [cell[0], cell[1], cell[2]];
+  for (let axis = 0; axis < 3; axis++) {
+    const extra = blockSize[axis] - 1; // cells beyond the first one
+    if (axis === faceAxis) {
+      if (faceSign < 0) origin[axis] -= extra;
+    } else {
+      origin[axis] -= Math.floor(extra / 2);
+    }
+  }
+  return origin;
+}
+
 export interface BlockPlacement {
   /** The middle of the block in grid cells. */
   center: Vector;

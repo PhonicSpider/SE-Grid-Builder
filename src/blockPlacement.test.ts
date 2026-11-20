@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BlockInfo } from "./catalog";
-import { placementMatrix, placementOf } from "./blockPlacement";
+import { originOnFace, placementMatrix, placementOf } from "./blockPlacement";
 import { DEFAULT_ORIENTATION, rotatePitch, rotateRoll, rotateYaw, type Orientation } from "./orientation";
 
 function block(size: [number, number, number], cubeSize = "Large", offset: [number, number, number] = [0, 0, 0]): BlockInfo {
@@ -82,5 +82,33 @@ describe("placementMatrix", () => {
       const determinant = rx * (uy * bz - uz * by) - ry * (ux * bz - uz * bx) + rz * (ux * by - uy * bx);
       expect(determinant).toBeCloseTo(1);
     }
+  });
+});
+
+describe("originOnFace", () => {
+  it("leaves a one-cell block on the cell next to the face", () => {
+    expect(originOnFace([4, 2, 7], 0, 1, [1, 1, 1])).toEqual([4, 2, 7]);
+    expect(originOnFace([4, 2, 7], 0, -1, [1, 1, 1])).toEqual([4, 2, 7]);
+  });
+
+  it("grows a big block away from a face that points to higher numbers", () => {
+    // Clicked the +x face of a block, so the cell next door is x = 5; the
+    // 3-wide block must start there and fill x = 5, 6, 7.
+    expect(originOnFace([5, 0, 0], 0, 1, [3, 1, 1])).toEqual([5, 0, 0]);
+  });
+
+  it("moves a big block back from a face that points to lower numbers", () => {
+    // Clicked the -x face, so the cell next door is x = 2. The block must
+    // fill x = 0, 1, 2 instead of growing back into the block at x = 3.
+    expect(originOnFace([2, 0, 0], 0, -1, [3, 1, 1])).toEqual([0, 0, 0]);
+    expect(originOnFace([4, 6, 0], 1, -1, [1, 3, 1])).toEqual([4, 4, 0]);
+  });
+
+  it("centers a big block on the cell under the cursor along the other axes", () => {
+    // A 3x3x3 block placed on the top face: x and z are centered, y is not.
+    expect(originOnFace([10, 4, 10], 1, 1, [3, 3, 3])).toEqual([9, 4, 9]);
+    // An even size cannot be centered exactly; it leans one cell toward lower numbers.
+    expect(originOnFace([10, 4, 10], 1, 1, [2, 1, 2])).toEqual([10, 4, 10]);
+    expect(originOnFace([10, 4, 10], 1, 1, [4, 1, 4])).toEqual([9, 4, 9]);
   });
 });

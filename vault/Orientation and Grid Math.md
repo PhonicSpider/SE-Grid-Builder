@@ -49,3 +49,6 @@ The cell under the cursor becomes the block's `Min`. Clicking on a face of an ex
 
 ## Known simplification
 In the real game the block's *model pivot* decides where the model sits inside its cells. The editor draws a plain box filling the covered cells, so for blocks whose real model is smaller, the preview is only an approximation. The exported data (`Min`, orientation) is what matters.
+
+## Where a block lands on a clicked face
+A block is stored by its lowest corner and grows toward higher numbers. `originOnFace` (blockPlacement.ts) moves a multi-cell block back by its own size when the clicked face points toward lower numbers, so it sits beside the block instead of overlapping it. Along the other two axes it centers the block on the cell under the cursor. The area drags (Shift and Ctrl) use the plain cell next to the face and are unchanged.

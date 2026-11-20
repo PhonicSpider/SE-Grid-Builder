@@ -21,7 +21,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { boundsOfDrag, cellsInLayer, dragAxisFor, fillLayout, IN_PLANE_AXES, type AreaBounds, type AreaShape } from "./areaTools";
 import { BlockMeshes } from "./blockMeshes";
-import { placementMatrix, placementOf } from "./blockPlacement";
+import { originOnFace, placementMatrix, placementOf } from "./blockPlacement";
 import type { BlockInfo } from "./catalog";
 import { loadBlockModel, modelRequestFor, type LoadedModel } from "./modelLoader";
 import type { EditorState } from "./editorState";
@@ -39,6 +39,8 @@ interface PickResult {
   placementCell: Vector | null;
   /** The axis (0 = x, 1 = y, 2 = z) the hit face points along. The floor counts as y. */
   faceAxis: number | null;
+  /** Which way that face points along its axis: +1 or -1 (the floor points +1). */
+  faceSign: number;
   /** The cell inside the hit block (null when the floor was hit). */
   hitCell: Vector | null;
 }
@@ -228,13 +230,10 @@ export class Viewport {
     }
 
     const [width, height, depth] = footprint(selected.size, this.state.orientation);
+    const origin = this.originFor(pick, selected);
     this.ghost.scale.set(width, height, depth);
-    this.ghost.position.set(
-      pick.placementCell[0] + width / 2,
-      pick.placementCell[1] + height / 2,
-      pick.placementCell[2] + depth / 2,
-    );
-    const allowed = this.ship.canPlace(selected, pick.placementCell, this.state.orientation);
+    this.ghost.position.set(origin[0] + width / 2, origin[1] + height / 2, origin[2] + depth / 2);
+    const allowed = this.ship.canPlace(selected, origin, this.state.orientation);
     const tint = allowed ? 0x3ddc84 : 0xe5484d;
     this.ghostMaterial.color.set(tint);
     this.ghost.visible = true;
@@ -251,10 +250,16 @@ export class Viewport {
       this.ghostModel.geometry = model.geometry;
       // Every material slot the model uses needs an entry, or its parts would not be drawn.
       this.ghostModel.material = model.slots.map(() => this.ghostModelMaterial);
-      const placement = placementOf(selected, pick.placementCell, this.state.orientation);
+      const placement = placementOf(selected, origin, this.state.orientation);
       this.ghostModel.matrix.fromArray(placementMatrix(placement));
       this.ghostModel.matrixWorldNeedsUpdate = true;
     }
+  }
+
+  /** Where the selected block's lowest corner goes for this pick (see `originOnFace`). */
+  private originFor(pick: PickResult, selected: BlockInfo): Vector {
+    const size = footprint(selected.size, this.state.orientation);
+    return originOnFace(pick.placementCell!, pick.faceAxis ?? 1, pick.faceSign, size);
   }
 
   /** Starts loading the selected block's model for the ghost (the loader caches, so this is cheap to repeat). */
@@ -308,7 +313,8 @@ export class Viewport {
         Math.floor(hit.point.y - normal.y * 0.01),
         Math.floor(hit.point.z - normal.z * 0.01),
       ];
-      return { blockId: hit.object.userData.blockId as number, placementCell, faceAxis, hitCell };
+      const faceSign = normalParts[faceAxis] > 0 ? 1 : -1;
+      return { blockId: hit.object.userData.blockId as number, placementCell, faceAxis, faceSign, hitCell };
     }
 
     // Otherwise: did it hit the floor?
@@ -318,10 +324,11 @@ export class Viewport {
         blockId: null,
         placementCell: [Math.floor(floorPoint.x), 0, Math.floor(floorPoint.z)],
         faceAxis: 1,
+        faceSign: 1,
         hitCell: null,
       };
     }
-    return { blockId: null, placementCell: null, faceAxis: null, hitCell: null };
+    return { blockId: null, placementCell: null, faceAxis: null, faceSign: 1, hitCell: null };
   }
 
   // -------------------------------------------------------------------------
@@ -416,7 +423,7 @@ export class Viewport {
         if (selected && pick.placementCell) {
           this.ship.place(
             selected,
-            pick.placementCell,
+            this.originFor(pick, selected),
             { ...this.state.orientation },
             { ...this.state.paint },
             this.state.skin,

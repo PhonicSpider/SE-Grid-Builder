@@ -34,7 +34,7 @@ Extra blocks can be exported by listing `Type\|Subtype\|Large` lines in `devfixt
 
 ## Last verified run (2026-11-18)
 - `cargo test`: 50 passed, 0 failed, 5 ignored; takes about 45 s because several tests read the whole game (every model twice, every icon, and the blueprint test reads all your local blueprints). `cargo test --release` is faster. The ignored ones write into your real blueprint folder or print exploration data.
-- `npm test`: 87 passed (Rust: 54 passed), 0 failed.
+- `npm test`: 91 passed (Rust: 54 passed), 0 failed.
 - `cargo clippy --all-targets`: no warnings.
 - `run.bat` in the project root starts the desktop app (installs dependencies first if needed).
 - `npx tsc --noEmit`: clean. `npx vite build`: succeeded. `npm run tauri dev`: compiled and launched without errors.
