@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { loadSe1Catalog } from "./catalog";
 import { countText, LoadingScreen, stageFraction } from "./loadingScreen";
 import { preloadAssets } from "./preload";
+import { checkForUpdate } from "./updater";
 import { createEditorState } from "./editorState";
 import { Ship } from "./ship";
 import { setUpInterface } from "./ui";
@@ -28,6 +29,9 @@ async function start(screen: LoadingScreen): Promise<void> {
   const viewportContainer = document.getElementById("viewport")!;
   screen.reset();
   screen.say("Starting SE Grid Builder...");
+
+  // First thing: look for a newer version. Never stops the app from starting.
+  await checkForUpdate(screen);
 
   try {
     const catalog = await loadSe1Catalog((progress) => {

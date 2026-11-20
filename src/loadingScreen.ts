@@ -19,6 +19,13 @@ export function stageFraction(from: number, to: number, done: number, total: num
   return from + (to - from) * finished;
 }
 
+/** The text of a download line, e.g. "Downloading update... 12.4 / 48.0 MB". */
+export function downloadText(doneBytes: number, totalBytes: number): string {
+  const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+  if (totalBytes <= 0) return `Downloading update... ${megabytes(doneBytes)} MB`;
+  return `Downloading update... ${megabytes(doneBytes)} / ${megabytes(totalBytes)} MB`;
+}
+
 /** How many log lines to keep; older ones scroll away for good. */
 const MAX_LOG_LINES = 300;
 
@@ -66,11 +73,31 @@ export class LoadingScreen {
     button.onclick = onClick;
   }
 
+  /** Shows two buttons and waits. Resolves true for the first, false for the second. */
+  askChoice(yesLabel: string, noLabel: string): Promise<boolean> {
+    const yes = this.root.querySelector<HTMLButtonElement>("#loading-action")!;
+    const no = this.root.querySelector<HTMLButtonElement>("#loading-skip")!;
+    return new Promise((resolve) => {
+      const answer = (choice: boolean) => {
+        yes.hidden = true;
+        no.hidden = true;
+        resolve(choice);
+      };
+      yes.textContent = yesLabel;
+      no.textContent = noLabel;
+      yes.hidden = false;
+      no.hidden = false;
+      yes.onclick = () => answer(true);
+      no.onclick = () => answer(false);
+    });
+  }
+
   /** Puts the screen back to its starting state, for trying again. */
   reset(): void {
     this.root.classList.remove("failed", "done");
     this.root.hidden = false;
     this.root.querySelector<HTMLButtonElement>("#loading-action")!.hidden = true;
+    this.root.querySelector<HTMLButtonElement>("#loading-skip")!.hidden = true;
     this.log.replaceChildren();
     this.progress("Starting...", 0);
   }

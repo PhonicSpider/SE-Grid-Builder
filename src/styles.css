@@ -592,6 +592,20 @@ button:disabled {
   cursor: pointer;
 }
 
-#loading-action[hidden] {
+#loading-action[hidden],
+#loading-skip[hidden] {
   display: none;
+}
+
+/* The "Not now" button next to an update offer: quieter than the main one. */
+#loading-skip {
+  margin: 16px 0 0 8px;
+  padding: 8px 16px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.75;
 }

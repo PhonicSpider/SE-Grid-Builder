@@ -26,3 +26,14 @@ Related: [[Architecture]], [[Textures]], [[Commands]]
 If nothing is found, the loading screen shows **Locate game folder...**. The command `choose_install_folder` opens the Windows folder picker (`rfd` crate), accepts the game folder or a folder just above it, saves it, and start-up runs again. A wrong folder shows an error and lets the player retry.
 
 Blueprints are not searched for: they always live in `%APPDATA%\SpaceEngineers\Blueprints\local`.
+
+## Update check
+
+The first thing the loading screen does is ask GitHub for a newer release (`src/updater.ts`, Tauri updater plugin).
+
+- Endpoint: `https://github.com/PhonicSpider/SE-Grid-Builder/releases/latest/download/latest.json` (set in `tauri.conf.json`).
+- If a newer version exists the screen shows **Update now** / **Not now**. Updating downloads with a progress bar, installs, then restarts.
+- Offline, a timeout (8 s) or no update file published yet only logs a line and the app carries on.
+- Updates are signed. The private key lives outside the repo at `~/.tauri/se-grid-builder.key` (lose it and installed copies can never update again). The public key is in `tauri.conf.json`.
+- Each release must be built with `TAURI_SIGNING_PRIVATE_KEY_PATH` set, and the `.exe` setup, its `.sig` and a `latest.json` attached to the GitHub release.
+- v1.0.0 has no updater inside it, so people on 1.0.0 must install a newer version by hand once.

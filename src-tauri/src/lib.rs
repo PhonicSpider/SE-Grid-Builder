@@ -157,6 +157,10 @@ async fn import_se1_blueprint(xml: String) -> Result<blueprint_import::ImportedB
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // The updater checks GitHub for a newer release; the process plugin
+        // lets the app restart itself once an update is installed.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             load_se1_catalog,
             load_block_icon,
