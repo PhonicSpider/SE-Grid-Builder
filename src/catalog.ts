@@ -14,6 +14,14 @@ export interface BlockInfo {
   categories: string[];
   /** Same length as `categories`: where the game lists this block in each (0 = first). */
   category_positions: number[];
+  /** Where the block sits in the game's block definition files (0 = first). */
+  definition_order: number;
+  /** Where the game's G-menu grid pins this block's group, in reading order (0 = top left); null if unpinned. */
+  grid_position: number | null;
+  /** The game's variant group (one menu tile, scrolled through on the toolbar); null if the block stands alone. */
+  variant_group: string | null;
+  /** Where the block sits inside its variant group (0 = the first, shown on the tile). */
+  variant_position: number;
   cube_size: string; // "Large" or "Small"
   size: [number, number, number];
   icon: string | null;
@@ -103,6 +111,10 @@ function sampleCatalog(): Se1Catalog {
     display_name: name,
     categories: [categoryKey],
     category_positions: [sampleOrder++],
+    definition_order: sampleOrder,
+    grid_position: null,
+    variant_group: null,
+    variant_position: 0,
     cube_size: cubeSize,
     size,
     icon: null,
@@ -112,6 +124,15 @@ function sampleCatalog(): Se1Catalog {
     cube_topology: null,
     side_models: [],
   });
+
+  /** Puts sample blocks into a variant group, in the order given (the first is the tile). */
+  const group = (name: string, blocks: BlockInfo[]): BlockInfo[] => {
+    blocks.forEach((block, position) => {
+      block.variant_group = name;
+      block.variant_position = position;
+    });
+    return blocks;
+  };
 
   return {
     install_path: "(browser preview: sample blocks only)",
@@ -128,15 +149,19 @@ function sampleCatalog(): Se1Catalog {
       { key: POWER, display_name: "Power", kind: "function" },
     ],
     blocks: [
-      make("LargeBlockArmorBlock", "Light Armor Block", ARMOR, "Large", [1, 1, 1]),
-      make("LargeBlockArmorSlope", "Light Armor Slope", ARMOR, "Large", [1, 1, 1], "CubeBlock", false),
-      make("LargeBlockArmorCorner", "Light Armor Corner", ARMOR, "Large", [1, 1, 1], "CubeBlock", false),
+      ...group("ArmorLightCubeGroup", [
+        make("LargeBlockArmorBlock", "Light Armor Block", ARMOR, "Large", [1, 1, 1]),
+        make("LargeBlockArmorSlope", "Light Armor Slope", ARMOR, "Large", [1, 1, 1], "CubeBlock", false),
+        make("LargeBlockArmorCorner", "Light Armor Corner", ARMOR, "Large", [1, 1, 1], "CubeBlock", false),
+      ]),
       make("LargeHeavyBlockArmorBlock", "Heavy Armor Block", ARMOR, "Large", [1, 1, 1]),
       make("LargeBlockConveyor", "Conveyor Tube", LOGISTICS, "Large", [1, 1, 1], "Conveyor"),
       make("LargeBlockLargeGenerator", "Large Reactor", POWER, "Large", [3, 3, 3], "Reactor"),
       make("LargeBlockCockpit", "Cockpit", CONTROL, "Large", [2, 2, 3], "Cockpit"),
-      make("SmallBlockArmorBlock", "Light Armor Block", ARMOR, "Small", [1, 1, 1]),
-      make("SmallBlockArmorSlope", "Light Armor Slope", ARMOR, "Small", [1, 1, 1], "CubeBlock", false),
+      ...group("ArmorLightCubeGroup", [
+        make("SmallBlockArmorBlock", "Light Armor Block", ARMOR, "Small", [1, 1, 1]),
+        make("SmallBlockArmorSlope", "Light Armor Slope", ARMOR, "Small", [1, 1, 1], "CubeBlock", false),
+      ]),
       make("SmallBlockSmallGenerator", "Small Reactor", POWER, "Small", [1, 1, 1], "Reactor"),
     ],
   };

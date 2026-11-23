@@ -92,7 +92,7 @@
         <select id="category-select" aria-label="Block category"></select>
         <label class="checkbox-row">
           <input id="include-variants" type="checkbox" checked />
-          Include armor shapes and variants
+          Include blocks the game hides from its menu
         </label>
         <div id="block-grid" role="list" aria-label="Blocks"></div>
         <p class="hint" id="catalog-status">Loading block list…</p>
@@ -130,6 +130,8 @@
           <input id="click-through" type="checkbox" />
           Click through faded blocks
         </label>
+        <button type="button" id="help-button" aria-label="Show the tutorial"
+          data-tooltip="Show the tutorial again">?</button>
       </div>
       <div id="overlay">
         <div id="status-left">
@@ -153,6 +155,8 @@
         </ul>
       </div>
       </div>
+      <!-- The selected block's shape variants (slope, corner, ...), like the game's toolbar scroll. -->
+      <div id="variant-strip" role="group" aria-label="Shapes of the selected block" hidden></div>
     </main>
   </body>
 </html>

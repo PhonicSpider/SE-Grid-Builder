@@ -5,6 +5,9 @@
 // controls (fade sliders) live in the bar across the top of the 3D view.
 
 import { BlockGrid } from "./blockGrid";
+import { groupBlocks, variantsOf, type BlockTile } from "./blockGroups";
+import { VariantStrip } from "./variantViews";
+import { sortLikeTheGame } from "./blockOrder";
 import { loadGameIcon } from "./blockIcons";
 import type { BlockInfo, Se1Catalog } from "./catalog";
 import { hexToPaint, paintToHex } from "./color";
@@ -27,12 +30,6 @@ function requireElement<ElementType extends HTMLElement>(id: string): ElementTyp
   const element = document.getElementById(id);
   if (!element) throw new Error(`missing element #${id} in index.html`);
   return element as ElementType;
-}
-
-/** Where the game lists a block inside one category (0 = first); blocks not in it sort last. */
-function positionInCategory(block: BlockInfo, categoryKey: string): number {
-  const index = block.categories.indexOf(categoryKey);
-  return index === -1 ? Number.MAX_SAFE_INTEGER : block.category_positions[index];
 }
 
 export function setUpInterface(catalog: Se1Catalog, ship: Ship, state: EditorState, viewport: Viewport): void {
@@ -63,6 +60,8 @@ export function setUpInterface(catalog: Se1Catalog, ship: Ship, state: EditorSta
   setUpSidebarResizer(requireElement("panel"), requireElement("panel-resizer"));
 
   const blockGrid = new BlockGrid(requireElement("block-grid"), (block) => selectBlock(block));
+  // The selected block's shape variants, centered at the bottom of the 3D view.
+  const variantStrip = new VariantStrip(requireElement("variant-strip"), (block) => selectBlock(block));
 
   // ---- View bar (top of the 3D view): fade groups of blocks ---------------
 
@@ -102,37 +101,46 @@ export function setUpInterface(catalog: Se1Catalog, ship: Ship, state: EditorSta
 
   // ---- Block list ---------------------------------------------------------
 
-  /** Blocks that fit the current grid size and the "include variants" box. */
+  /**
+   * Blocks that fit the current grid size. Shapes inside a variant group always
+   * count (they live behind their tile); the checkbox decides whether blocks
+   * the game hides from its menu, and that belong to no group, are listed.
+   */
   function blocksForGrid(): BlockInfo[] {
     return catalog.blocks.filter(
-      (block) => block.cube_size === ship.gridSize && (includeVariants.checked || block.shown_in_game_menu),
+      (block) => block.cube_size === ship.gridSize && (includeVariants.checked || block.shown_in_game_menu || block.variant_group !== null),
     );
   }
 
-  /** The blocks to show, filtered by category and search, in the game's own order. */
-  function visibleBlocks(): BlockInfo[] {
+  /** The tiles to show, filtered by category and search, in the game's own order. */
+  function visibleTiles(): BlockTile[] {
     const searchText = searchBox.value.trim().toLowerCase();
     const chosenCategory = categorySelect.value;
 
-    const matching = blocksForGrid().filter((block) => {
+    const matching = groupBlocks(blocksForGrid()).filter((tile) => {
+      // A tile sits in the categories of the block drawn on it.
+      const { categories } = tile.block;
       if (chosenCategory === NOT_IN_GAME_MENU) {
-        if (block.categories.length > 0) return false;
-      } else if (chosenCategory && !block.categories.includes(chosenCategory)) {
+        if (categories.length > 0) return false;
+      } else if (chosenCategory && !categories.includes(chosenCategory)) {
         return false;
       }
       if (!searchText) return true;
-      return (
-        block.display_name.toLowerCase().includes(searchText) ||
-        block.subtype_id.toLowerCase().includes(searchText)
+      // A search also finds a tile through any shape in its group.
+      return tile.variants.some(
+        (block) =>
+          block.display_name.toLowerCase().includes(searchText) ||
+          block.subtype_id.toLowerCase().includes(searchText),
       );
     });
 
-    // Inside one category the game lists blocks in a set order; match it.
-    // ("All categories" keeps the alphabetical order from the catalog.)
-    if (chosenCategory && chosenCategory !== NOT_IN_GAME_MENU) {
-      matching.sort((left, right) => positionInCategory(left, chosenCategory) - positionInCategory(right, chosenCategory));
-    }
-    return matching;
+    // List tiles in the game's own order, whichever category (or all) is shown.
+    const categoryKey = chosenCategory === NOT_IN_GAME_MENU ? "" : chosenCategory;
+    return sortLikeTheGame(
+      matching,
+      categoryKey,
+      catalog.categories.map((category) => category.key),
+    );
   }
 
   /**
@@ -175,9 +183,9 @@ export function setUpInterface(catalog: Se1Catalog, ship: Ship, state: EditorSta
   }
 
   function rebuildBlockList(): void {
-    const blocks = visibleBlocks();
-    blockGrid.show(blocks, state.selectedBlock);
-    catalogStatus.textContent = `${blocks.length} blocks · ${catalog.install_path}`;
+    const tiles = visibleTiles();
+    blockGrid.show(tiles, state.selectedBlock);
+    catalogStatus.textContent = `${tiles.length} blocks · ${catalog.install_path}`;
   }
 
   function selectBlock(block: BlockInfo): void {
@@ -188,7 +196,14 @@ export function setUpInterface(catalog: Se1Catalog, ship: Ship, state: EditorSta
     viewport.refresh();
   }
 
+  /** Shows the selected block's shape variants in the strip at the bottom of the view. */
+  function updateVariantStrip(): void {
+    const block = state.selectedBlock;
+    variantStrip.show(block ? variantsOf(block, catalog.blocks) : [], block);
+  }
+
   function updateSelectionText(): void {
+    updateVariantStrip();
     const block = state.selectedBlock;
     selectionInfo.textContent = block
       ? `Selected: ${block.display_name || block.subtype_id} (${block.size.join("×")} cells)`

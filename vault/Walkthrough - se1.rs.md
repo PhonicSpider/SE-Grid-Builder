@@ -71,7 +71,9 @@ For each file: read, strip the byte-order mark, parse, then for each definition 
 - The final list is sorted by display name so the menu is stable.
 
 ## 6b. Order inside a category
-`ItemIds` is an ordered list, and the game shows a category's blocks in that order. `load_categories` records each block's **position** in each list (`BlockInfo.category_positions`, same length as `categories`), and the menu sorts by it when a category is chosen. "All categories" stays alphabetical. Not yet compared side by side with the in-game G menu.
+`ItemIds` is an ordered list, and the game shows a category's blocks in that order. `load_categories` records each block's **position** in each list (`BlockInfo.category_positions`, same length as `categories`), and the menu sorts by it when a category is chosen. Not yet compared side by side with the in-game G menu.
+
+**The G-menu grid.** The game also ships `CubeBlocks\BlockPositions.sbc`, which pins about 150 block groups (by `BlockPairName`) to cells of a 10-wide grid: Light Armor Block, Heavy Armor Block, Round Slope... `load_grid_positions` reads it and each block gets `grid_position` (row x 10 + column, or none). `src/blockOrder.ts` (`sortLikeTheGame`) lists pinned blocks first in grid order, then the rest in category-list order, then hidden shape variants (slopes, corners) in file order (`definition_order`). This applies to every category and to "All categories". It is built from the game's files, not compared against the in-game menu yet.
 
 ## 6b2. Model fields
 Each block now also carries `model` (the `.mwm` path, for most blocks), `model_offset` (meters), and for armor-style blocks `cube_topology` and `side_models` (from `<CubeDefinition><Sides>`). 1,428 of 1,576 blocks have a `<Model>`; 148 use cube sides. `ModelOffset` has the same two XML forms as `Size`, with decimals.
@@ -111,3 +113,5 @@ Skins live in `Data\AssetModifiers\ArmorModifiers.sbc` as `<AssetModifier>` entr
 - `loads_catalog_with_readable_names`: needs a real install. Asserts **zero warnings** and that the light armor block is named "Light Armor Block", is Large, and is 1x1x1.
 
 Run: `cargo test -- --nocapture` inside `src-tauri`.
+
+**Variant groups.** The game shows one menu tile per block group (Light Armor Block with its slope and corners behind it). BlockVariantGroups.sbc lists each group's blocks in order; load_variant_groups gives every block a ariant_group and ariant_position. The front-end (src/blockGroups.ts) turns blocks into tiles, one per group and grid size, drawn with the group's first block. The selected block's group shows as a strip at the bottom of the 3D view, and hovering a tile lists its shapes (src/variantViews.ts). Checked against the game's file only; not yet compared in the running app.

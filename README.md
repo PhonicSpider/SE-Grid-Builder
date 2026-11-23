@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="branding/logo-source.png" alt="SE Grid Builder logo: the letters GB built from blue blocks" width="160">
+</p>
+
 # SE Grid Builder
 
 > **Not affiliated with Keen Software House or the Space Engineers games.** This is an independent fan project. It does not redistribute any game assets. The models, textures, icons and block data are read directly from your own installed copy of the game while the app runs, and nothing from the game is stored in this repository. Space Engineers and its content belong to Keen Software House.

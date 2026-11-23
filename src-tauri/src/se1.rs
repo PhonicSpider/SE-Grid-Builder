@@ -218,6 +218,10 @@ struct RawBlock {
     icon: Option<String>,
     #[serde(rename = "GuiVisible", default)]
     gui_visible: Option<bool>,
+    /// Groups a block with its variants (large and small grid, slopes, corners).
+    /// `BlockPositions.sbc` places each group in the G-menu grid by this name.
+    #[serde(rename = "BlockPairName", default)]
+    block_pair_name: Option<String>,
     /// The 3D model of most blocks: `Models\Cubes\Large\GeneratorLarge.mwm`.
     #[serde(rename = "Model", default)]
     model: Option<String>,
@@ -301,6 +305,134 @@ struct ResourceEntry {
     key: String,
     #[serde(rename = "value", default)]
     text: Option<String>,
+}
+
+/// Where the game's G-menu puts each block group (`CubeBlocks\BlockPositions.sbc`).
+/// Shape: <BlockPositions><BlockPosition> <Name/> <Position><X/><Y/></Position>...
+#[derive(Debug, Deserialize)]
+struct PositionsFile {
+    #[serde(rename = "BlockPositions", default)]
+    positions: Option<PositionList>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PositionList {
+    #[serde(rename = "BlockPosition", default)]
+    items: Vec<RawPosition>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawPosition {
+    #[serde(rename = "Name", default)]
+    name: String,
+    #[serde(rename = "Position")]
+    position: RawCell,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawCell {
+    #[serde(rename = "X", default)]
+    x: u32,
+    #[serde(rename = "Y", default)]
+    y: u32,
+}
+
+/// How many cells wide the game's block grid is (the file's X runs 0 to 9).
+const GRID_COLUMNS: u32 = 10;
+
+/// Reads the G-menu grid: block group name (`BlockPairName`) to its place in
+/// reading order (row by row, left to right; 0 = top left).
+/// Missing or unreadable file gives an empty map, so every block is simply unplaced.
+fn load_grid_positions(install: &Path) -> HashMap<String, u32> {
+    let path = install.join("Content").join("Data").join("CubeBlocks").join("BlockPositions.sbc");
+    let Ok(text) = fs::read_to_string(path) else {
+        return HashMap::new();
+    };
+    let Ok(parsed) = quick_xml::de::from_str::<PositionsFile>(text.trim_start_matches('\u{feff}')) else {
+        return HashMap::new();
+    };
+    parsed
+        .positions
+        .map(|list| list.items)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|item| (item.name, item.position.y * GRID_COLUMNS + item.position.x))
+        .collect()
+}
+
+/// The game's variant groups (`BlockVariantGroups.sbc`). A group is one tile in
+/// the game's block menu; the player scrolls through its blocks (slopes,
+/// corners, ...) once it is on the toolbar. Shape:
+///   <BlockVariantGroups><BlockVariantGroup> <Id Subtype=".."/> <Blocks><Block Subtype=".."/>...
+#[derive(Debug, Deserialize)]
+struct VariantGroupsFile {
+    #[serde(rename = "BlockVariantGroups", default)]
+    groups: Option<VariantGroupList>,
+}
+
+#[derive(Debug, Deserialize)]
+struct VariantGroupList {
+    #[serde(rename = "BlockVariantGroup", default)]
+    items: Vec<RawVariantGroup>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawVariantGroup {
+    #[serde(rename = "Id")]
+    identifier: RawGroupId,
+    #[serde(rename = "Blocks", default)]
+    blocks: Option<RawGroupBlocks>,
+}
+
+/// Group files write ids as attributes (`<Id Type=".." Subtype=".."/>`),
+/// unlike block definitions, which use child elements.
+#[derive(Debug, Deserialize)]
+struct RawGroupId {
+    #[serde(rename = "@Subtype", default)]
+    subtype_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawGroupBlocks {
+    #[serde(rename = "Block", default)]
+    items: Vec<RawGroupId>,
+}
+
+/// Which group a block belongs to and where it sits inside it.
+#[derive(Debug, Clone, PartialEq)]
+struct GroupMembership {
+    group: String,
+    position: u32,
+}
+
+/// Reads the variant groups: block subtype to its group and its place in it.
+/// A block listed in several groups keeps the first. Missing or unreadable file
+/// gives an empty map, so every block is simply its own tile.
+fn load_variant_groups(install: &Path) -> HashMap<String, GroupMembership> {
+    let path = install.join("Content").join("Data").join("BlockVariantGroups.sbc");
+    let Ok(text) = fs::read_to_string(path) else {
+        return HashMap::new();
+    };
+    parse_variant_groups(&text)
+}
+
+/// The text-to-map half of `load_variant_groups`, separate so a test can feed it XML.
+fn parse_variant_groups(text: &str) -> HashMap<String, GroupMembership> {
+    let Ok(parsed) = quick_xml::de::from_str::<VariantGroupsFile>(text.trim_start_matches('\u{feff}')) else {
+        return HashMap::new();
+    };
+    let mut memberships = HashMap::new();
+    for group in parsed.groups.map(|list| list.items).unwrap_or_default() {
+        let group_name = group.identifier.subtype_id.unwrap_or_default();
+        let members = group.blocks.map(|blocks| blocks.items).unwrap_or_default();
+        for (position, member) in members.into_iter().enumerate() {
+            let Some(subtype) = member.subtype_id else { continue };
+            memberships
+                .entry(subtype)
+                .or_insert(GroupMembership { group: group_name.clone(), position: position as u32 });
+        }
+    }
+    memberships
 }
 
 /// The game's menu categories (`BlockCategories.sbc`). Shape:
@@ -409,6 +541,19 @@ pub struct BlockInfo {
     /// Same length as `categories`: where the game lists this block inside each
     /// of those categories (0 = first). Used to show blocks in the game's order.
     pub category_positions: Vec<u32>,
+    /// Where this block appears across the game's block definition files, read in
+    /// file-name order (0 = first). The game's armor menu follows this order.
+    pub definition_order: u32,
+    /// Where the game's G-menu grid places this block's group, in reading order
+    /// (0 = top left). None for blocks the game leaves unplaced; the game lists
+    /// those after the placed ones, in category order.
+    pub grid_position: Option<u32>,
+    /// The game's variant group this block belongs to (one menu tile; the others
+    /// are reached by scrolling). None if the block stands alone.
+    pub variant_group: Option<String>,
+    /// Where the block sits inside its variant group (0 = the group's first block,
+    /// the one shown on the tile).
+    pub variant_position: u32,
     /// "Large" or "Small" (large-grid ships versus small-grid ships).
     pub cube_size: String,
     /// Size in grid cells: [x, y, z].
@@ -638,6 +783,9 @@ pub fn load_catalog_with_progress(
 
     // If the category file cannot be read the editor still works; every block
     // is simply uncategorized, and we say so in the warnings.
+    let grid_positions = load_grid_positions(install);
+    let variant_groups = load_variant_groups(install);
+
     report(message("Reading the block menu categories..."));
     let (categories, categories_by_item) = load_categories(install, &display_names).unwrap_or_else(|error| {
         warnings.push(error);
@@ -700,12 +848,22 @@ pub fn load_catalog_with_progress(
             let block_categories: Vec<String> = memberships.iter().map(|(key, _)| key.clone()).collect();
             let block_positions: Vec<u32> = memberships.iter().map(|(_, position)| *position).collect();
 
+            let group_membership = variant_groups.get(&subtype_id).cloned();
+
             blocks.push(BlockInfo {
                 type_id,
                 subtype_id,
                 display_name: readable_name,
                 categories: block_categories,
                 category_positions: block_positions,
+                // Counted before the alphabetical sort below, so it keeps the file order.
+                definition_order: blocks.len() as u32,
+                grid_position: raw
+                    .block_pair_name
+                    .as_ref()
+                    .and_then(|pair| grid_positions.get(pair.trim()).copied()),
+                variant_group: group_membership.as_ref().map(|member| member.group.clone()),
+                variant_position: group_membership.as_ref().map(|member| member.position).unwrap_or(0),
                 cube_size: raw.cube_size.unwrap_or_default(),
                 size: raw.size.map(|size| [size.x, size.y, size.z]).unwrap_or([1, 1, 1]),
                 icon: raw.icon,
@@ -891,6 +1049,53 @@ mod tests {
         let mut sorted = files.clone();
         sorted.sort();
         assert_eq!(files, sorted);
+    }
+
+    #[test]
+    fn variant_groups_map_each_block_to_its_group_and_place() {
+        let xml = r#"<Definitions><BlockVariantGroups>
+            <BlockVariantGroup><Id Type="T" Subtype="CubeGroup" /><Blocks>
+                <Block Type="B" Subtype="Cube" /><Block Type="B" Subtype="Slope" />
+            </Blocks></BlockVariantGroup>
+            <BlockVariantGroup><Id Type="T" Subtype="OtherGroup" /><Blocks>
+                <Block Type="B" Subtype="Slope" /><Block Type="B" Subtype="Ramp" />
+            </Blocks></BlockVariantGroup>
+        </BlockVariantGroups></Definitions>"#;
+        let map = parse_variant_groups(xml);
+        assert_eq!(map["Cube"], GroupMembership { group: "CubeGroup".into(), position: 0 });
+        assert_eq!(map["Slope"], GroupMembership { group: "CubeGroup".into(), position: 1 });
+        assert_eq!(map["Ramp"], GroupMembership { group: "OtherGroup".into(), position: 1 });
+    }
+
+    #[test]
+    fn the_game_grid_puts_the_light_armor_block_first() {
+        let install = find_install().expect("not found");
+        let catalog = load_catalog(&install).expect("load failed");
+        let mut placed: Vec<_> = catalog
+            .blocks
+            .iter()
+            .filter(|block| block.cube_size == "Large" && block.grid_position.is_some())
+            .collect();
+        placed.sort_by_key(|block| (block.grid_position, block.definition_order));
+        assert_eq!(placed[0].subtype_id, "LargeBlockArmorBlock");
+        assert_eq!(placed[0].grid_position, Some(0));
+        // The heavy armor block is the next cell over.
+        let heavy = placed.iter().find(|block| block.subtype_id == "LargeHeavyBlockArmorBlock").expect("no heavy armor");
+        assert_eq!(heavy.grid_position, Some(1));
+        assert!(placed.len() > 50, "only {} blocks were placed in the grid", placed.len());
+    }
+
+    #[test]
+    fn the_light_armor_slope_is_a_variant_of_the_light_armor_block() {
+        let install = find_install().expect("not found");
+        let catalog = load_catalog(&install).expect("load failed");
+        let find = |name: &str| catalog.blocks.iter().find(|block| block.subtype_id == name).expect("missing block");
+        let cube = find("LargeBlockArmorBlock");
+        let slope = find("LargeBlockArmorSlope");
+        assert_eq!(cube.variant_group.as_deref(), Some("ArmorLightCubeGroup"));
+        assert_eq!(cube.variant_position, 0);
+        assert_eq!(slope.variant_group.as_deref(), Some("ArmorLightCubeGroup"));
+        assert_eq!(slope.variant_position, 1);
     }
 
     #[test]

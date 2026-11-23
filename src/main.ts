@@ -5,6 +5,7 @@ import { loadSe1Catalog } from "./catalog";
 import { countText, LoadingScreen, stageFraction } from "./loadingScreen";
 import { preloadAssets } from "./preload";
 import { checkForUpdate } from "./updater";
+import { setUpTutorial } from "./tutorial";
 import { createEditorState } from "./editorState";
 import { Ship } from "./ship";
 import { setUpInterface } from "./ui";
@@ -55,6 +56,7 @@ async function start(screen: LoadingScreen): Promise<void> {
     const viewport = new Viewport(viewportContainer, ship, state);
     setUpInterface(catalog, ship, state, viewport);
     await screen.finish();
+    setUpTutorial();
   } catch (error) {
     status.textContent = `Could not load the game's block list: ${error}`;
     screen.fail(`Could not load the game's block list: ${error}`);
